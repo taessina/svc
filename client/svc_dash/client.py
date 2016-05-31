@@ -9,6 +9,7 @@ Version info: the normal switch algorithm which selected layer according
 from xml.dom.minidom import parseString
 from urlparse import urlparse
 from threading import Thread
+from multiprocessing import Queue
 import httplib, httplib2, urllib2
 import subprocess, sys
 import re
@@ -20,6 +21,8 @@ import glob
 from multiprocessing import Process
 import datetime
 from logger import *
+
+q = Queue()
 
 if(len(sys.argv)<2):
 	print "Input argv for this client!"
@@ -38,6 +41,10 @@ videoName = mpdName.split('.264.mpd')[0]
 folderUrlPath = re.sub('\/'+mpdName+'$', '', mpdUrl)	#http://localhost/video
 cacheMatch = folderUrlPath.split("//")[-1]
 cacheMatch = cacheMatch.replace("/", ",")
+cacheMatch = cacheMatch.replace(":", ",")
+cacheMatch0='hack.taessina.com,9000,video'
+cacheMatch1='hack.taessina.com,9001,video'
+cacheMatch2='hack.taessina.com,9002,video'
 stepList = []
 stopDownload = []
 speed = 10000 #initiate the speed of the first segment
@@ -55,17 +62,25 @@ def get_XML(url):
 	dom = parseString(data)
 	return dom
 
-def download_seg(directory, layerID, dom, segID):
+def download_seg(directory, layerID, dom, segID, q):
 	if not os.path.exists(directory):
 		os.makedirs(directory)
 	fileList = []
 	for layerdom in dom.getElementsByTagName("Representation"):
 		# print int(layerID) == int(layerdom.attributes["id"].value)
-		if int(layerID) >= int(layerdom.attributes["id"].value):
+		if int(layerID) == int(layerdom.attributes["id"].value):
 			segName = layerdom.getElementsByTagName("SegmentURL")[segID]
 			# print mpdUrlHost
 			fileName = str(segName.attributes['media'].value)
-			segURL = folderUrlPath + '/'+ fileName
+			if int(layerID) == 0:
+				segURL =  'http://hack.taessina.com:9000/video/'+ fileName
+				fileCacheMatch = ".cache/" + cacheMatch0 + "," + fileName+"*"
+			elif int(layerID) == 16:
+				segURL =  'http://hack.taessina.com:9001/video/'+ fileName
+				fileCacheMatch = ".cache/" + cacheMatch1 + "," + fileName+"*"
+			elif int(layerID) == 32:
+				segURL =  'http://hack.taessina.com:9002/video/'+ fileName
+				fileCacheMatch = ".cache/" + cacheMatch2 + "," + fileName+"*"
 			# fileNamePath = directory + '/' + fileName
 			# print segURL
 			t1 = time.time()
@@ -94,10 +109,11 @@ def download_seg(directory, layerID, dom, segID):
 			# f.close()
 			# print "download " + fileName + " completed"
 			'''save all the .svc layer file to .cache folder'''
-			fileCacheMatch = ".cache/" + cacheMatch + "," + fileName+"*"
+			print fileCacheMatch
 			fileNamePath = glob.glob(fileCacheMatch)[0]
 			fileList.append(fileNamePath)
-	return fileList, speed
+	q.put((layerID, fileNamePath, speed), True)
+	print str(datetime.datetime.now()) + ":" + fileNamePath
 
 def play_video(videoName, width, height):
 	# subprocess.call(["mplayer", "-fps", "25", videoName, "-x", "640", "-y", "352"])
@@ -282,7 +298,47 @@ if(sys.argv[2]=="-play"):
 			# print "Stop downloading"
 			break
 		else:
-			fileList, speed = download_seg(videoName, selectedLayer, parseResult["data"], i)
+			print 'NABEHHHHHH - ' + str(selectedLayer) + ' - NABEHHHHHHHHH'
+			threads = []
+			if selectedLayer == 32:
+				thread1 = Thread(target=download_seg, args=(videoName, 32, parseResult["data"], i, q))
+				thread2 = Thread(target=download_seg, args=(videoName, 16, parseResult["data"], i, q))
+				thread3 = Thread(target=download_seg, args=(videoName, 0, parseResult["data"], i, q))
+				thread3.start()
+				thread2.start()
+				thread1.start()
+				threads.append(thread1)
+				threads.append(thread2)
+				threads.append(thread3)
+			elif selectedLayer == 16:
+				thread1 = Thread(target=download_seg, args=(videoName, 16, parseResult["data"], i, q))
+				thread2 = Thread(target=download_seg, args=(videoName, 0, parseResult["data"], i, q))
+				thread2.start()
+                                thread1.start()
+				threads.append(thread1)
+				threads.append(thread2)
+			else:
+				thread = Thread(target=download_seg, args=(videoName, 0, parseResult["data"], i, q))
+				thread.start()
+				threads.append(thread)
+
+			for t in threads:
+				t.join()
+			print "Threads are back"
+			fileList = []
+			speeds = []
+			print q.qsize()
+			for _ in range(0, q.qsize()):
+				result = q.get(True)
+				fileList.append(result[1]) # 1 is fileName
+				speeds.append(result[2]) # 2 is speed
+
+			fileList = sorted(fileList)
+			if len(speeds) is not 0:
+				speed = reduce(lambda x, y: x + y, speeds) / len(speeds)
+			else:
+				speed = 0
+			#fileList, speed = download_seg(videoName, selectedLayer, parseResult["data"], i)
 			downloadMonitor.append(str(i)+" finish download")
 			# print downloadMonitor
 		message = str(datetime.datetime.now()) + ": Finish download segment " + str(i)
@@ -292,6 +348,7 @@ if(sys.argv[2]=="-play"):
 
 		'''Mux the downloaded files with differnt layers'''
 		for j in fileList:
+			print "\033[95m" + j + "\033[0m"
 			command.append(j)
 		message = str(datetime.datetime.now()) + ": Start mux video file"
 		logging.info(message)
