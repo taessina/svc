@@ -29,6 +29,8 @@ if(len(sys.argv)<2):
 	print "Usage"
 	print "python " + sys.argv[0] + " url_of_mpd_file" + " -detail"
 	print "python " + sys.argv[0] + " url_of_mpd_file" + " -play layerID[16]"
+	print "or try this: "
+	print "sudo python client.py http://hack.taessina.com/video/video_1.264.mpd -play"
 	quit()
 
 mpdUrl = sys.argv[1]					# for example  http://localhost/video/video_1.264.mpd
@@ -85,7 +87,7 @@ def download_seg(directory, layerID, dom, segID, q):
 			# print segURL
 			t1 = time.time()
 			h = httplib2.Http(".cache")
-			#print "save segURL is: " + segURL 
+			#print "save segURL is: " + segURL
 			try:
 				resp, content = h.request(segURL, "GET")
 				if resp.status ==200:
@@ -122,7 +124,7 @@ def play_video(videoName, width, height):
 	logging.info(message)
 	logName = videoName + ".log"
 	f = open(logName, "wb")
-	p = subprocess.Popen(["mplayer", "-fps", "25", videoName, "-x", width, "-y", height], stdout=f, 
+	p = subprocess.Popen(["mplayer", "-fps", "25", videoName, "-x", width, "-y", height], stdout=f,
 						stdin=subprocess.PIPE, stderr=subprocess.PIPE)
 	i = 0
 	while p.poll()==None:
@@ -147,11 +149,11 @@ def parse_frame_idx(text):
 def mplayer_controler(outName, frameNumber, segNumber, totalSeg):
 	#totalIdx = len(inputList)
 	'''
-	timeInterval defines the print frequency of the frame number in the terminal. 
+	timeInterval defines the print frequency of the frame number in the terminal.
 	'''
 	timeInterval = 0.4
 	frameStep = timeInterval*25
-	k = PyKeyboard()	
+	k = PyKeyboard()
 	logName = outName + ".log"
 	tmpIdx = 1
 	while True:
@@ -166,20 +168,20 @@ def mplayer_controler(outName, frameNumber, segNumber, totalSeg):
 			# print "=================================="
 			message = str(datetime.datetime.now()) + ": " + text
 			logging.info(message)
-			message = (str(datetime.datetime.now()) + ": Exit mplayer\n" + 
+			message = (str(datetime.datetime.now()) + ": Exit mplayer\n" +
 						"==================================")
 			logging.info(message)
 			# stopDownload = True
 			stopDownload.append("stop")
 			# print "stopDownload"
 			# print stopDownload
-			break 
+			break
 		elif "[vdpau]" in text or "no prescaling applied" in text:
 			continue
 		else:
-			print str(text) 
+			print str(text)
 			sleep(timeInterval)
-			frameIdx = parse_frame_idx(text) 
+			frameIdx = parse_frame_idx(text)
 			# print "!!!!"
 			# print downloadMonitor
 			'''Check if the next segment finish download, if not pause the video at the before the current segment end'''
@@ -200,7 +202,7 @@ def mplayer_controler(outName, frameNumber, segNumber, totalSeg):
 							logging.info(message)
 							break
 			if frameIdx >= frameNumber*tmpIdx and frameIdx < frameNumber*tmpIdx + frameStep:
-				message = (str(datetime.datetime.now()) + ":\n" + "==================================\n" + 
+				message = (str(datetime.datetime.now()) + ":\n" + "==================================\n" +
 							"CurrentFrame is: "+str(frameIdx)+".")
 				logging.info(message)
 				if bool(stepList):
@@ -216,7 +218,7 @@ def mplayer_controler(outName, frameNumber, segNumber, totalSeg):
 				else:
 					break
 
-''' Parse MPD file 
+''' Parse MPD file
 '''
 def parse_mpd(url):
 	layerID = []
@@ -236,12 +238,12 @@ def parse_mpd(url):
 	duration = segListTag.attributes["duration"].value
 	numberofSeg = len(segListTag.getElementsByTagName("SegmentURL"))
 	return {"layerID":layerID, "layerList":layerList, "data":data,
-			"numberofSeg":numberofSeg, "duration":duration, "width":width, 
+			"numberofSeg":numberofSeg, "duration":duration, "width":width,
 			"height":height, "layerBW":layerBW}
 
 if(sys.argv[2]=="-play"):
 	'''
-	Read and parse information in mpd file 
+	Read and parse information in mpd file
 	'''
 	print str(datetime.datetime.now())
 	logPath = os.getcwd() +"/log"
@@ -254,14 +256,14 @@ if(sys.argv[2]=="-play"):
 	# print "start processing!"
 	message = (str(datetime.datetime.now()) + ":\n========================================================\n" +
 				"Video information:\n" + "Video resolution is:" + parseResult["width"] + "x" + parseResult["height"] +
-				"\nLayerID is: " + parseResult["layerList"] + "\nBandwidth requirement for each layer is: " + 
+				"\nLayerID is: " + parseResult["layerList"] + "\nBandwidth requirement for each layer is: " +
 				str(parseResult["layerBW"]) +" bits/s"+ "\nSegment number is: " + str(parseResult["numberofSeg"]) +
-				"\nDuration of each segment is: " + parseResult["duration"] + " frames\n" + 
+				"\nDuration of each segment is: " + parseResult["duration"] + " frames\n" +
 				"========================================================")
 	logging.info(message)
 
 	'''Download each segment according to segCheckList'''
-	
+
 	layerID = parseResult["layerID"]
 	layerID = map(int, layerID)
 	layerBWList = parseResult["layerBW"]
@@ -274,7 +276,7 @@ if(sys.argv[2]=="-play"):
 		command.append(outputSegName)
 		threshold = 0
 		message = (str(datetime.datetime.now()) + ":\n==================================================\n" +
-					"Start handling segment " + str(i) + ", previous reference speed is: " + str(speed/1000/8) + 
+					"Start handling segment " + str(i) + ", previous reference speed is: " + str(speed/1000/8) +
 					"KB/s")
 		logging.info(message)
 		for j in range(0,len(layerID)):
@@ -286,7 +288,7 @@ if(sys.argv[2]=="-play"):
 				selectedLayer = layerID[j]
 			elif j == 0:
 				selectedLayer = layerID[j]
-				break 
+				break
 			else:
 				break
 		# print "selectedLayer is: " + str(selectedLayer)
@@ -380,7 +382,7 @@ if(sys.argv[2]=="-play"):
 			logging.error(message)
 		else:
 			f1.close()
-		message = (str(datetime.datetime.now()) + ": Finish handling segment " + str(i) + 
+		message = (str(datetime.datetime.now()) + ": Finish handling segment " + str(i) +
 					"\n==================================================")
 		logging.info(message)
 		if i == 0:
@@ -391,7 +393,7 @@ if(sys.argv[2]=="-play"):
 					selectedLayer1 = layerID[j]
 				elif j == 0:
 					selectedLayer1 = layerID[j]
-					break 
+					break
 				else:
 					break
 			stepValue1 = layerID.index(selectedLayer1) - layerID.index(selectedLayer)
@@ -411,13 +413,13 @@ if(sys.argv[2]=="-play"):
 
 if(sys.argv[2]=="-detail"):
 	'''
-	Read and parse information in mpd file 
+	Read and parse information in mpd file
 	'''
 	parseResult = parse_mpd(mpdUrl)
 	message = (str(datetime.datetime.now()) + "\nVideo resolution is:" + parseResult["width"] + "x" + parseResult["height"] +
-				"\nLayerID is: " + parseResult["layerList"] + "\nBandwidth requirement for each layer is: " + 
+				"\nLayerID is: " + parseResult["layerList"] + "\nBandwidth requirement for each layer is: " +
 				str(parseResult["layerBW"]) + " bits/s" + "\nSegment number is: " + str(parseResult["numberofSeg"]) +
-				"\nDuration of each segment is: " + parseResult["duration"] + " frames\n" + 
+				"\nDuration of each segment is: " + parseResult["duration"] + " frames\n" +
 				"========================================================")
 	print message
 	logging.info(message)
