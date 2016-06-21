@@ -51,7 +51,7 @@ stepList = []
 stopDownload = []
 speed = 10000 #initiate the speed of the first segment
 downloadMonitor = []
-
+myDownloadLayer = -1
 
 def get_XML(url):
 	try:
@@ -184,6 +184,11 @@ def mplayer_controler(outName, frameNumber, segNumber, totalSeg):
 			frameIdx = parse_frame_idx(text)
 			# print "!!!!"
 			# print downloadMonitor
+			print "monitor: " + str(len(downloadMonitor)) + " - " + str(tmpIdx)
+			if (len(downloadMonitor) - tmpIdx) < 2:
+				myDownloadLayer = 0
+			else:
+				myDownloadLayer = -1
 			'''Check if the next segment finish download, if not pause the video at the before the current segment end'''
 			if (frameIdx < frameNumber*tmpIdx-3*frameStep and frameIdx >= frameNumber*tmpIdx - (4*frameStep)):
 				# if len(downloadMonitor)==totalSeg:
@@ -286,6 +291,9 @@ if(sys.argv[2]=="-play"):
 			logging.info(message)
 			if speed >= threshold:
 				selectedLayer = layerID[j]
+			elif myDownloadLayer > -1:
+				selectedLayer = layerID[0]
+				break
 			elif j == 0:
 				selectedLayer = layerID[j]
 				break
@@ -316,7 +324,7 @@ if(sys.argv[2]=="-play"):
 				thread1 = Thread(target=download_seg, args=(videoName, 16, parseResult["data"], i, q))
 				thread2 = Thread(target=download_seg, args=(videoName, 0, parseResult["data"], i, q))
 				thread2.start()
-                                thread1.start()
+				thread1.start()
 				threads.append(thread1)
 				threads.append(thread2)
 			else:
